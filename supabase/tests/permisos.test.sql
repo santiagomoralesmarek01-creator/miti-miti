@@ -66,6 +66,9 @@ select pg_temp.check((select already_member from get_invite((select code from ct
 select pg_temp.fails(format('update members set user_id = auth.uid() where id = %L', (select nico from ctx)), 'No se puede cambiar user_id directamente');
 select pg_temp.fails(format('insert into members (group_id, name, user_id) values (%L, ''Truco'', %L)',
   (select gid from ctx), '00000000-0000-0000-0000-00000000000c'), 'No se puede sumar a alguien con cuenta ajena');
+select pg_temp.fails(format('update groups set invite_code = ''elegido-a-mano'' where id = %L', (select gid from ctx where code is not null)),
+  'No se puede elegir el código de invitación a mano');
+select pg_temp.fails('insert into groups (name) values (''Sin función'')', 'Los grupos solo se crean con create_group()');
 update members set name = 'Nicolás' where id = (select nico from ctx);
 select pg_temp.check((select name from members where id = (select nico from ctx)) = 'Nicolás', 'Se puede renombrar a un integrante');
 
@@ -101,7 +104,8 @@ select pg_temp.check((select count(*) from expenses) = 0, 'Al borrar el grupo se
 -- Sin sesión no se puede crear nada.
 set role anon;
 reset request.jwt.claim.sub;
-select pg_temp.fails('select create_group(''x'', ''x'', ''ARS'', ''x'')', 'Sin sesión no se crean grupos');
+select pg_temp.fails('select public.create_group(''x'', ''x'', ''ARS'', ''x'')', 'Sin sesión no se crean grupos');
+select pg_temp.fails('select count(*) from public.groups', 'Sin sesión no se lee nada');
 reset role;
 
 \echo 'Todos los tests de permisos pasaron.'

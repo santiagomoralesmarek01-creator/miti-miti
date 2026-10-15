@@ -1,7 +1,11 @@
 -- Miti-Miti: grupos privados. Solo los integrantes ven y modifican un grupo;
 -- para entrar hace falta el código de invitación.
 
-create extension if not exists pgcrypto;
+-- Código de invitación al azar: 32 caracteres hexadecimales (122 bits).
+create function public.new_invite_code() returns text
+language sql volatile as $$
+  select replace(gen_random_uuid()::text, '-', '');
+$$;
 
 -- ============ Tablas ============
 
@@ -10,7 +14,7 @@ create table public.groups (
   name text not null check (char_length(name) between 1 and 60),
   emoji text not null default '💸',
   currency text not null default 'ARS' check (currency in ('ARS', 'USD', 'EUR', 'UYU', 'CLP', 'BRL')),
-  invite_code text not null unique default encode(gen_random_bytes(9), 'hex'),
+  invite_code text not null unique default public.new_invite_code(),
   created_by uuid not null default auth.uid() references auth.users (id) on delete cascade,
   created_at timestamptz not null default now()
 );
@@ -89,9 +93,6 @@ create policy "integrantes suman personas" on public.members
   for insert with check (is_member(group_id) and user_id is null);
 create policy "integrantes renombran" on public.members
   for update using (is_member(group_id)) with check (is_member(group_id));
--- Solo se puede cambiar el nombre: user_id queda fuera del alcance del cliente.
-revoke update on public.members from anon, authenticated;
-grant update (name) on public.members to authenticated;
 
 create policy "integrantes ven gastos" on public.expenses
   for select using (is_member(group_id));
@@ -194,14 +195,27 @@ begin
   if not is_member(p_group_id) then
     raise exception 'No sos integrante de este grupo';
   end if;
-  update groups set invite_code = encode(gen_random_bytes(9), 'hex')
+  update groups set invite_code = public.new_invite_code()
     where id = p_group_id returning invite_code into code;
   return code;
 end;
 $$;
 
-revoke execute on function public.create_group, public.get_invite, public.join_group, public.reset_invite from anon, public;
-grant execute on function public.create_group, public.get_invite, public.join_group, public.reset_invite to authenticated;
+-- ============ Acceso desde la API ============
+
+-- Solo usuarios con sesión. Las columnas que se pueden editar son las de nombre
+-- y apariencia: invite_code, created_by y user_id cambian únicamente a través
+-- de las funciones de arriba.
+revoke all on public.groups, public.members, public.expenses, public.payments from anon, authenticated;
+grant select, delete on public.groups, public.members, public.expenses, public.payments to authenticated;
+grant insert on public.members, public.expenses, public.payments to authenticated;
+grant update (name, emoji, currency) on public.groups to authenticated;
+grant update (name) on public.members to authenticated;
+
+revoke execute on function public.new_invite_code, public.is_member, public.members_belong, public.create_group,
+  public.get_invite, public.join_group, public.reset_invite from public, anon, authenticated;
+grant execute on function public.is_member, public.members_belong, public.create_group, public.get_invite,
+  public.join_group, public.reset_invite to authenticated;
 
 -- ============ Tiempo real ============
 
