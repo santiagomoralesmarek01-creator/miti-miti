@@ -1,23 +1,44 @@
 import { useMemo, useState } from 'react'
-import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Avatar } from '../components/Avatar'
 import { ExpenseForm } from '../components/ExpenseForm'
 import { Header } from '../components/Header'
+import { InviteDialog } from '../components/InviteDialog'
 import { Modal } from '../components/Modal'
+import { Cargando } from '../components/RequireAuth'
+import { currentUserId } from '../lib/auth'
 import { formatMoney } from '../lib/money'
 import { computeBalances, suggestTransfers, totalSpent } from '../lib/settle'
 import { addMember, addPayment, deleteExpense, deleteGroup, deletePayment, useGroup } from '../lib/store'
+import { attempt, showToast } from '../lib/toast'
 import type { Group } from '../lib/types'
 
 type Tab = 'gastos' | 'saldos'
 
 export function GroupPage() {
   const { id } = useParams()
-  const group = useGroup(id)
+  const { group, notFound } = useGroup(id)
   const [tab, setTab] = useState<Tab>('gastos')
-  const [adding, setAdding] = useState(false)
+  const [dialog, setDialog] = useState<'gasto' | 'invitar' | null>(null)
 
-  if (!group) return <Navigate to="/app" replace />
+  if (notFound) {
+    return (
+      <>
+        <Header variant="app" />
+        <main className="app contenedor">
+          <div className="vacio">
+            <strong>No encontramos este grupo.</strong>
+            <p style={{ marginBottom: 18 }}>Puede que lo hayan borrado o que todavía no te hayan invitado.</p>
+            <Link to="/app" className="boton">
+              Ir a mis grupos
+            </Link>
+          </div>
+        </main>
+      </>
+    )
+  }
+
+  if (!group) return <Cargando />
 
   return (
     <>
@@ -31,6 +52,9 @@ export function GroupPage() {
             <span className="emoji-grande">{group.emoji}</span>
             <h1>{group.name}</h1>
           </div>
+          <button className="boton boton--verde" onClick={() => setDialog('invitar')}>
+            🔗 Invitar
+          </button>
         </div>
 
         <Summary group={group} />
@@ -44,19 +68,24 @@ export function GroupPage() {
           ))}
         </div>
 
-        <div role="tabpanel">{tab === 'gastos' ? <Activity group={group} onAdd={() => setAdding(true)} /> : <Balances group={group} />}</div>
+        <div role="tabpanel">
+          {tab === 'gastos' ? <Activity group={group} onAdd={() => setDialog('gasto')} /> : <Balances group={group} />}
+        </div>
 
-        <DangerZone group={group} />
+        {group.createdBy === currentUserId() && <DangerZone group={group} />}
       </main>
 
       <div className="flotante">
-        <button className="boton boton--grande boton--rosa" onClick={() => setAdding(true)}>
+        <button className="boton boton--grande boton--rosa" onClick={() => setDialog('gasto')}>
           + Gasto
         </button>
       </div>
 
-      <Modal open={adding} onClose={() => setAdding(false)} label="Nuevo gasto">
-        <ExpenseForm group={group} onDone={() => setAdding(false)} />
+      <Modal open={dialog === 'gasto'} onClose={() => setDialog(null)} label="Nuevo gasto">
+        <ExpenseForm group={group} onDone={() => setDialog(null)} />
+      </Modal>
+      <Modal open={dialog === 'invitar'} onClose={() => setDialog(null)} label="Invitar al grupo">
+        <InviteDialog group={group} onClose={() => setDialog(null)} />
       </Modal>
     </>
   )
@@ -85,20 +114,28 @@ function Summary({ group }: { group: Group }) {
 function Members({ group }: { group: Group }) {
   const [name, setName] = useState('')
   const [open, setOpen] = useState(false)
+  const me = currentUserId()
 
-  const add = () => {
+  const add = async () => {
     const n = name.trim()
-    if (!n || group.members.some((m) => m.name.toLowerCase() === n.toLowerCase())) return
-    addMember(group.id, n)
-    setName('')
-    setOpen(false)
+    if (!n) return
+    if (group.members.some((m) => m.name.toLowerCase() === n.toLowerCase())) return showToast(`Ya hay alguien que se llama ${n}.`, 'error')
+    if (await attempt(() => addMember(group.id, n))) {
+      setName('')
+      setOpen(false)
+    }
   }
 
   return (
     <div className="integrantes">
       {group.members.map((m, i) => (
-        <span className="chip" aria-pressed="false" style={{ opacity: 1, cursor: 'default' }} key={m.id}>
+        <span
+          className={`chip chip--fijo${m.userId ? '' : ' chip--sin-cuenta'}`}
+          key={m.id}
+          title={m.userId ? undefined : 'Todavía no entró con la invitación'}
+        >
           <Avatar name={m.name} index={i} /> {m.name}
+          {m.userId === me && <span className="vos">vos</span>}
         </span>
       ))}
       {open ? (
@@ -108,15 +145,14 @@ function Members({ group }: { group: Group }) {
           </label>
           <input
             id="sumar-persona"
-            className="campo"
-            style={{ padding: '6px 12px', border: '2px solid var(--linea)', borderRadius: 999, background: 'var(--papel)' }}
+            className="input-chip"
             value={name}
             autoFocus
             maxLength={30}
             placeholder="Nombre"
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') add()
+              if (e.key === 'Enter') void add()
               if (e.key === 'Escape') setOpen(false)
             }}
           />
@@ -171,7 +207,7 @@ function Activity({ group, onAdd }: { group: Group; onAdd: () => void }) {
             <button
               className="icono-boton"
               aria-label={`Borrar ${it.e.description}`}
-              onClick={() => confirm(`¿Borrar "${it.e.description}"?`) && deleteExpense(group.id, it.e.id)}
+              onClick={() => confirm(`¿Borrar "${it.e.description}"?`) && void attempt(() => deleteExpense(group.id, it.e.id))}
             >
               ✕
             </button>
@@ -188,7 +224,11 @@ function Activity({ group, onAdd }: { group: Group; onAdd: () => void }) {
               <p className="detalle">Pago para saldar deudas</p>
             </div>
             <span className="monto">{formatMoney(it.p.amount, group.currency)}</span>
-            <button className="icono-boton" aria-label="Deshacer pago" onClick={() => deletePayment(group.id, it.p.id)}>
+            <button
+              className="icono-boton"
+              aria-label="Deshacer pago"
+              onClick={() => confirm('¿Deshacer este pago?') && void attempt(() => deletePayment(group.id, it.p.id))}
+            >
               ✕
             </button>
           </article>
@@ -201,9 +241,16 @@ function Activity({ group, onAdd }: { group: Group; onAdd: () => void }) {
 function Balances({ group }: { group: Group }) {
   const balances = useMemo(() => computeBalances(group), [group])
   const transfers = useMemo(() => suggestTransfers(balances), [balances])
+  const [paying, setPaying] = useState<string | null>(null)
   const max = Math.max(1, ...[...balances.values()].map(Math.abs))
   const index = (id: string) => group.members.findIndex((m) => m.id === id)
   const name = (id: string) => group.members[index(id)]?.name ?? '¿?'
+
+  const markPaid = async (t: (typeof transfers)[number]) => {
+    setPaying(`${t.fromId}-${t.toId}`)
+    if (await attempt(() => addPayment(group.id, t))) showToast(`Listo: ${name(t.fromId)} le pagó a ${name(t.toId)}`)
+    setPaying(null)
+  }
 
   return (
     <div className="saldos">
@@ -250,8 +297,8 @@ function Balances({ group }: { group: Group }) {
                 <br />
                 <strong>{formatMoney(t.amount, group.currency)}</strong>
               </span>
-              <button className="boton boton--chico boton--verde" onClick={() => addPayment(group.id, t)}>
-                Pagado ✓
+              <button className="boton boton--chico boton--verde" disabled={paying !== null} onClick={() => markPaid(t)}>
+                {paying === `${t.fromId}-${t.toId}` ? '…' : 'Pagado ✓'}
               </button>
             </div>
           ))
@@ -267,11 +314,9 @@ function DangerZone({ group }: { group: Group }) {
     <div className="zona-peligro">
       <button
         className="enlace-peligro"
-        onClick={() => {
-          if (confirm(`¿Borrar el grupo "${group.name}" con todos sus gastos? No se puede deshacer.`)) {
-            deleteGroup(group.id)
-            navigate('/app')
-          }
+        onClick={async () => {
+          if (!confirm(`¿Borrar el grupo "${group.name}" con todos sus gastos? Se borra para todos y no se puede deshacer.`)) return
+          if (await attempt(() => deleteGroup(group.id))) navigate('/app')
         }}
       >
         Borrar este grupo

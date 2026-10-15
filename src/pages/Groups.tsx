@@ -4,14 +4,15 @@ import { Avatar } from '../components/Avatar'
 import { Header } from '../components/Header'
 import { Modal } from '../components/Modal'
 import { NewGroupForm } from '../components/NewGroupForm'
+import { Cargando } from '../components/RequireAuth'
 import { formatMoney } from '../lib/money'
 import { totalSpent } from '../lib/settle'
-import { createDemoGroup, useGroups } from '../lib/store'
+import { loadGroups, useGroups } from '../lib/store'
 
 const FONDOS = ['--amarillo', '--rosa', '--verde', '--celeste', '--violeta', '--naranja']
 
 export function Groups() {
-  const groups = useGroups()
+  const { groups, status } = useGroups()
   const navigate = useNavigate()
   const [creating, setCreating] = useState(false)
 
@@ -29,18 +30,23 @@ export function Groups() {
           </button>
         </div>
 
-        {groups.length === 0 ? (
+        {status === 'error' && groups.length === 0 ? (
+          <div className="vacio">
+            <strong>No pudimos traer tus grupos.</strong>
+            <p style={{ marginBottom: 18 }}>Revisá tu conexión.</p>
+            <button className="boton" onClick={() => void loadGroups()}>
+              Reintentar
+            </button>
+          </div>
+        ) : status !== 'ready' && groups.length === 0 ? (
+          <Cargando />
+        ) : groups.length === 0 ? (
           <div className="vacio">
             <strong>Todavía no hay grupos.</strong>
-            <p style={{ marginBottom: 20 }}>Armá uno nuevo o mirá cómo funciona con un grupo de ejemplo.</p>
-            <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-              <button className="boton" onClick={() => setCreating(true)}>
-                Crear mi primer grupo
-              </button>
-              <button className="boton boton--papel" onClick={() => navigate(`/app/g/${createDemoGroup().id}`)}>
-                Ver un ejemplo
-              </button>
-            </div>
+            <p style={{ marginBottom: 20 }}>Armá uno y mandale el link de invitación a tu gente.</p>
+            <button className="boton" onClick={() => setCreating(true)}>
+              Crear mi primer grupo
+            </button>
           </div>
         ) : (
           <div className="grilla-grupos">
@@ -65,7 +71,7 @@ export function Groups() {
       </main>
 
       <Modal open={creating} onClose={() => setCreating(false)} label="Nuevo grupo">
-        <NewGroupForm onCancel={() => setCreating(false)} onCreated={(g) => navigate(`/app/g/${g.id}`)} />
+        <NewGroupForm onCancel={() => setCreating(false)} onCreated={(id) => navigate(`/app/g/${id}`)} />
       </Modal>
     </>
   )

@@ -1310,3 +1310,153 @@ select {
   bottom: 22px;
   z-index: 20;
 }
+
+/* ============ Cuentas e invitaciones ============ */
+.boton--ancho {
+  width: 100%;
+}
+
+.cargando {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 50vh;
+  font-weight: 700;
+}
+
+.girador {
+  width: 28px;
+  height: 28px;
+  border: 3px solid var(--linea);
+  border-radius: 50%;
+  background: conic-gradient(var(--amarillo) 0 50%, var(--rosa) 50% 100%);
+  animation: rotar 0.9s linear infinite;
+}
+
+@keyframes rotar {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.entrar {
+  display: grid;
+  place-items: start center;
+}
+
+.entrar-caja {
+  width: min(480px, 100%);
+  padding: 32px;
+}
+
+.entrar-caja h1 {
+  font-size: clamp(2rem, 6vw, 2.6rem);
+  margin: 14px 0 10px;
+}
+
+.entrar-bajada {
+  color: var(--tinta-suave);
+  margin-bottom: 24px;
+}
+
+.entrar-mail {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.separador {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 22px 0;
+  color: var(--tinta-suave);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.separador::before,
+.separador::after {
+  content: '';
+  flex: 1;
+  border-top: 2px dashed var(--linea);
+  opacity: 0.4;
+}
+
+.enviado {
+  text-align: center;
+}
+
+.enviado .grande {
+  display: block;
+  font-size: 3.4rem;
+}
+
+.enviado p {
+  margin-bottom: 16px;
+}
+
+.chip--fijo {
+  cursor: default;
+}
+
+.chip--sin-cuenta {
+  border-style: dashed;
+}
+
+.vos {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--tinta);
+  color: var(--fondo);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.input-chip {
+  padding: 6px 12px;
+  border: 2px solid var(--linea);
+  border-radius: 999px;
+  background: var(--papel);
+}
+
+.carteles {
+  position: fixed;
+  left: 50%;
+  bottom: 96px;
+  z-index: 50;
+  display: grid;
+  gap: 10px;
+  width: min(420px, 100% - 32px);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.cartel {
+  padding: 12px 16px;
+  font-weight: 700;
+  animation: entrar 0.25s ease-out both;
+}
+
+.cartel--ok {
+  background: var(--verde);
+  color: var(--sobre-color);
+}
+
+.cartel--error {
+  background: var(--rojo);
+  color: var(--sobre-color);
+}
+
+code {
+  padding: 1px 6px;
+  border: 1px solid var(--linea);
+  border-radius: 6px;
+  font-size: 0.9em;
+}
+
+.chips--elegir .chip[aria-pressed='false'] {
+  opacity: 1;
+}

@@ -21,7 +21,7 @@ export function splitEvenly(amount: number, parts: number): number[] {
  * Saldo de cada integrante en centavos: positivo si le deben,
  * negativo si debe. La suma de todos los saldos siempre es cero.
  */
-export function computeBalances(group: Pick<Group, 'members' | 'expenses' | 'payments'>): Map<string, number> {
+export function computeBalances(group: { members: { id: string }[] } & Pick<Group, 'expenses' | 'payments'>): Map<string, number> {
   const balances = new Map<string, number>(group.members.map((m) => [m.id, 0]))
   const add = (id: string, delta: number) => balances.set(id, (balances.get(id) ?? 0) + delta)
 

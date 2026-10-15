@@ -1,31 +1,24 @@
-import { useSyncExternalStore } from 'react'
+import { useEffect, useSyncExternalStore } from 'react'
+import { currentUserId } from './auth'
+import { GROUP_SELECT, rowToGroup, type GroupRow } from './mapping'
 import type { Currency } from './money'
+import { db } from './supabase'
 import type { Expense, Group, Payment } from './types'
 
-// Fase 1: los grupos viven en el navegador (localStorage).
-// La API de este módulo es la que después va a implementar Supabase.
+// Caché en memoria de los grupos que trae Supabase. Los componentes leen de acá
+// con hooks; las funciones de escritura van a la base y después recargan.
 
-const KEY = 'miti-miti:grupos:v1'
-
-let groups: Group[] = load()
-const listeners = new Set<() => void>()
-
-function load(): Group[] {
-  try {
-    const raw = localStorage.getItem(KEY)
-    return raw ? (JSON.parse(raw) as Group[]) : []
-  } catch {
-    return []
-  }
+interface State {
+  groups: Map<string, Group>
+  listStatus: 'idle' | 'loading' | 'ready' | 'error'
+  missing: Set<string>
 }
 
-function commit(next: Group[]) {
-  groups = next
-  try {
-    localStorage.setItem(KEY, JSON.stringify(next))
-  } catch {
-    // Sin almacenamiento (modo privado): la app sigue andando en memoria.
-  }
+let state: State = { groups: new Map(), listStatus: 'idle', missing: new Set() }
+const listeners = new Set<() => void>()
+
+function setState(patch: Partial<State>) {
+  state = { ...state, ...patch }
   listeners.forEach((l) => l())
 }
 
@@ -34,77 +27,179 @@ function subscribe(listener: () => void) {
   return () => listeners.delete(listener)
 }
 
-const now = () => new Date().toISOString()
-const uid = () => crypto.randomUUID()
-
-function updateGroup(id: string, fn: (g: Group) => Group) {
-  commit(groups.map((g) => (g.id === id ? fn(g) : g)))
+function putGroup(g: Group) {
+  const groups = new Map(state.groups)
+  groups.set(g.id, g)
+  const missing = new Set(state.missing)
+  missing.delete(g.id)
+  setState({ groups, missing })
 }
 
-export function useGroups(): Group[] {
-  return useSyncExternalStore(subscribe, () => groups)
+function fail(action: string): never {
+  throw new Error(`No se pudo ${action}. Revisá tu conexión y probá de nuevo.`)
 }
 
-export function useGroup(id: string | undefined): Group | undefined {
-  return useSyncExternalStore(subscribe, () => groups.find((g) => g.id === id))
+// ============ Lectura ============
+
+export async function loadGroups() {
+  setState({ listStatus: state.listStatus === 'ready' ? 'ready' : 'loading' })
+  const { data, error } = await db().from('groups').select(GROUP_SELECT).order('created_at', { ascending: false })
+  if (error) return setState({ listStatus: 'error' })
+  setState({ groups: new Map((data as GroupRow[]).map((r) => [r.id, rowToGroup(r)])), listStatus: 'ready' })
 }
 
-export function createGroup(input: { name: string; emoji: string; currency: Currency; memberNames: string[] }): Group {
-  const group: Group = {
-    id: uid(),
-    name: input.name,
-    emoji: input.emoji,
-    currency: input.currency,
-    members: input.memberNames.map((name) => ({ id: uid(), name })),
-    expenses: [],
-    payments: [],
-    createdAt: now(),
+export async function loadGroup(id: string) {
+  const { data, error } = await db().from('groups').select(GROUP_SELECT).eq('id', id).maybeSingle()
+  if (error) return
+  if (!data) {
+    const groups = new Map(state.groups)
+    groups.delete(id)
+    return setState({ groups, missing: new Set(state.missing).add(id) })
   }
-  commit([group, ...groups])
-  return group
+  putGroup(rowToGroup(data as GroupRow))
 }
 
-export function deleteGroup(id: string) {
-  commit(groups.filter((g) => g.id !== id))
+export function useGroups() {
+  useEffect(() => {
+    void loadGroups()
+  }, [])
+  const s = useSyncExternalStore(subscribe, () => state)
+  const groups = [...s.groups.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+  return { groups, status: s.listStatus }
 }
 
-export function addMember(groupId: string, name: string) {
-  updateGroup(groupId, (g) => ({ ...g, members: [...g.members, { id: uid(), name }] }))
+/** Trae un grupo y lo mantiene al día en tiempo real mientras la página está abierta. */
+export function useGroup(id: string | undefined) {
+  useEffect(() => {
+    if (!id) return
+    void loadGroup(id)
+
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const refresh = () => {
+      clearTimeout(timer)
+      timer = setTimeout(() => void loadGroup(id), 150)
+    }
+    const channel = db().channel(`grupo-${id}`)
+    for (const table of ['members', 'expenses', 'payments']) {
+      channel.on('postgres_changes', { event: '*', schema: 'public', table, filter: `group_id=eq.${id}` }, refresh)
+    }
+    channel.on('postgres_changes', { event: '*', schema: 'public', table: 'groups', filter: `id=eq.${id}` }, refresh)
+    channel.subscribe()
+
+    return () => {
+      clearTimeout(timer)
+      void db().removeChannel(channel)
+    }
+  }, [id])
+
+  const s = useSyncExternalStore(subscribe, () => state)
+  const group = id ? s.groups.get(id) : undefined
+  return { group, notFound: id ? s.missing.has(id) : true }
 }
 
-export function addExpense(groupId: string, input: Omit<Expense, 'id' | 'createdAt'>) {
-  updateGroup(groupId, (g) => ({ ...g, expenses: [{ ...input, id: uid(), createdAt: now() }, ...g.expenses] }))
+/** El integrante que corresponde a quien está usando la app. */
+export function myMember(group: Group) {
+  const uid = currentUserId()
+  return group.members.find((m) => m.userId === uid)
 }
 
-export function deleteExpense(groupId: string, expenseId: string) {
-  updateGroup(groupId, (g) => ({ ...g, expenses: g.expenses.filter((e) => e.id !== expenseId) }))
-}
+// ============ Escritura ============
 
-export function addPayment(groupId: string, input: Omit<Payment, 'id' | 'createdAt'>) {
-  updateGroup(groupId, (g) => ({ ...g, payments: [{ ...input, id: uid(), createdAt: now() }, ...g.payments] }))
-}
-
-export function deletePayment(groupId: string, paymentId: string) {
-  updateGroup(groupId, (g) => ({ ...g, payments: g.payments.filter((p) => p.id !== paymentId) }))
-}
-
-/** Grupo de ejemplo para probar la app sin cargar nada. */
-export function createDemoGroup(): Group {
-  const g = createGroup({
-    name: 'Finde en Mar del Plata',
-    emoji: '🏖️',
-    currency: 'ARS',
-    memberNames: ['Sofi', 'Tomi', 'Juli', 'Nico'],
+export async function createGroup(input: {
+  name: string
+  emoji: string
+  currency: Currency
+  myName: string
+  otherNames: string[]
+}): Promise<string> {
+  const { data, error } = await db().rpc('create_group', {
+    p_name: input.name,
+    p_emoji: input.emoji,
+    p_currency: input.currency,
+    p_my_name: input.myName,
+    p_other_names: input.otherNames,
   })
-  const [sofi, tomi, juli, nico] = g.members.map((m) => m.id)
-  const all = [sofi, tomi, juli, nico]
-  const demo: Omit<Expense, 'id' | 'createdAt'>[] = [
-    { description: 'Nafta y peajes', emoji: '⛽', amount: 4800000, payerId: tomi, participantIds: all },
-    { description: 'Súper del viernes', emoji: '🛒', amount: 3260000, payerId: sofi, participantIds: all },
-    { description: 'Pizza en Montecatini', emoji: '🍕', amount: 2850000, payerId: juli, participantIds: all },
-    { description: 'Alquiler de sombrilla', emoji: '⛱️', amount: 1500000, payerId: nico, participantIds: [sofi, juli, nico] },
-    { description: 'Alfajores para llevar', emoji: '🍫', amount: 1240000, payerId: sofi, participantIds: [sofi, tomi] },
-  ]
-  for (const e of demo.reverse()) addExpense(g.id, e)
-  return g
+  if (error || !data) fail('crear el grupo')
+  await loadGroup(data as string)
+  return data as string
+}
+
+export async function deleteGroup(id: string) {
+  const { error } = await db().from('groups').delete().eq('id', id)
+  if (error) fail('borrar el grupo')
+  const groups = new Map(state.groups)
+  groups.delete(id)
+  setState({ groups })
+}
+
+export async function addMember(groupId: string, name: string) {
+  const { error } = await db().from('members').insert({ group_id: groupId, name })
+  if (error) fail('sumar a la persona')
+  await loadGroup(groupId)
+}
+
+export async function addExpense(groupId: string, input: Omit<Expense, 'id' | 'createdAt'>) {
+  const { error } = await db().from('expenses').insert({
+    group_id: groupId,
+    description: input.description,
+    emoji: input.emoji,
+    amount: input.amount,
+    payer_id: input.payerId,
+    participant_ids: input.participantIds,
+  })
+  if (error) fail('guardar el gasto')
+  await loadGroup(groupId)
+}
+
+export async function deleteExpense(groupId: string, expenseId: string) {
+  const { error } = await db().from('expenses').delete().eq('id', expenseId)
+  if (error) fail('borrar el gasto')
+  await loadGroup(groupId)
+}
+
+export async function addPayment(groupId: string, input: Omit<Payment, 'id' | 'createdAt'>) {
+  const { error } = await db().from('payments').insert({ group_id: groupId, from_id: input.fromId, to_id: input.toId, amount: input.amount })
+  if (error) fail('registrar el pago')
+  await loadGroup(groupId)
+}
+
+export async function deletePayment(groupId: string, paymentId: string) {
+  const { error } = await db().from('payments').delete().eq('id', paymentId)
+  if (error) fail('deshacer el pago')
+  await loadGroup(groupId)
+}
+
+export async function resetInvite(groupId: string) {
+  const { error } = await db().rpc('reset_invite', { p_group_id: groupId })
+  if (error) fail('generar un link nuevo')
+  await loadGroup(groupId)
+}
+
+// ============ Invitaciones ============
+
+export interface Invite {
+  groupId: string
+  name: string
+  emoji: string
+  alreadyMember: boolean
+  openMembers: { id: string; name: string }[]
+}
+
+export async function getInvite(code: string): Promise<Invite | null> {
+  const { data, error } = await db().rpc('get_invite', { p_code: code })
+  if (error) fail('abrir la invitación')
+  const row = (data as { group_id: string; name: string; emoji: string; already_member: boolean; open_members: Invite['openMembers'] }[])[0]
+  if (!row) return null
+  return { groupId: row.group_id, name: row.name, emoji: row.emoji, alreadyMember: row.already_member, openMembers: row.open_members }
+}
+
+export async function joinGroup(code: string, choice: { memberId: string } | { name: string }): Promise<string> {
+  const { data, error } = await db().rpc('join_group', {
+    p_code: code,
+    p_member_id: 'memberId' in choice ? choice.memberId : null,
+    p_name: 'name' in choice ? choice.name : null,
+  })
+  if (error || !data) throw new Error(error?.message.includes('ya tiene cuenta') ? 'Esa persona ya entró con otra cuenta. Elegí otra opción.' : 'No se pudo entrar al grupo.')
+  await loadGroups()
+  return data as string
 }

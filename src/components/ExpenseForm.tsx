@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { formatMoney, parseMoney } from '../lib/money'
 import { splitEvenly } from '../lib/settle'
-import { addExpense } from '../lib/store'
+import { addExpense, myMember } from '../lib/store'
 import type { Group } from '../lib/types'
 import { Avatar } from './Avatar'
 
@@ -11,9 +11,10 @@ export function ExpenseForm({ group, onDone }: { group: Group; onDone: () => voi
   const [description, setDescription] = useState('')
   const [emoji, setEmoji] = useState(EMOJIS[0])
   const [amountText, setAmountText] = useState('')
-  const [payerId, setPayerId] = useState(group.members[0]?.id ?? '')
+  const [payerId, setPayerId] = useState(myMember(group)?.id ?? group.members[0]?.id ?? '')
   const [participants, setParticipants] = useState<string[]>(group.members.map((m) => m.id))
   const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
 
   const amount = parseMoney(amountText)
   const share = amount && participants.length ? splitEvenly(amount, participants.length)[0] : null
@@ -21,13 +22,20 @@ export function ExpenseForm({ group, onDone }: { group: Group; onDone: () => voi
   const toggle = (id: string) =>
     setParticipants((prev) => (prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]))
 
-  const submit = (e: FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault()
     if (!description.trim()) return setError('¿En qué se gastó?')
     if (!amount) return setError('Escribí un monto válido, por ejemplo 12.500 o 12500,50.')
     if (participants.length === 0) return setError('Elegí al menos una persona para dividir.')
-    addExpense(group.id, { description: description.trim(), emoji, amount, payerId, participantIds: participants })
-    onDone()
+    setBusy(true)
+    setError('')
+    try {
+      await addExpense(group.id, { description: description.trim(), emoji, amount, payerId, participantIds: participants })
+      onDone()
+    } catch (err) {
+      setError((err as Error).message)
+      setBusy(false)
+    }
   }
 
   return (
@@ -92,8 +100,8 @@ export function ExpenseForm({ group, onDone }: { group: Group; onDone: () => voi
         <button type="button" className="boton boton--papel" onClick={onDone}>
           Cancelar
         </button>
-        <button type="submit" className="boton">
-          Guardar gasto
+        <button type="submit" className="boton" disabled={busy}>
+          {busy ? 'Guardando…' : 'Guardar gasto'}
         </button>
       </div>
     </form>

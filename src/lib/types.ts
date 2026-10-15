@@ -3,6 +3,8 @@ import type { Currency } from './money'
 export interface Member {
   id: string
   name: string
+  /** Cuenta vinculada; null si la persona todavía no entró con la invitación. */
+  userId: string | null
 }
 
 export interface Expense {
@@ -31,6 +33,8 @@ export interface Group {
   name: string
   emoji: string
   currency: Currency
+  inviteCode: string
+  createdBy: string
   members: Member[]
   expenses: Expense[]
   payments: Payment[]

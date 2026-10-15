@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { computeBalances, splitEvenly, suggestTransfers, type Transfer } from './settle'
-import type { Expense, Member, Payment } from './types'
+import type { Expense, Payment } from './types'
 
-const members: Member[] = ['ana', 'beto', 'caro', 'dani'].map((id) => ({ id, name: id }))
+const members = ['ana', 'beto', 'caro', 'dani'].map((id) => ({ id }))
 
 function expense(payerId: string, amount: number, participantIds: string[]): Expense {
   return { id: crypto.randomUUID(), description: '', emoji: '', amount, payerId, participantIds, createdAt: '' }

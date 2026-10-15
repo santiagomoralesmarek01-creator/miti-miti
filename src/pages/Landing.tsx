@@ -11,8 +11,8 @@ const FUNCIONES = [
   { emoji: '🎯', color: '--rosa', titulo: 'Gastos para algunos', texto: '¿Tomi no tomó vino? Elegí quiénes participan de cada gasto y listo.' },
   { emoji: '⚡', color: '--verde', titulo: 'Menos transferencias', texto: 'Miti-Miti cruza las deudas y te dice el camino más corto para quedar a mano.' },
   { emoji: '🌎', color: '--celeste', titulo: 'En tu moneda', texto: 'Pesos, dólares, reales o euros. Cada grupo con la suya.' },
-  { emoji: '📱', color: '--violeta', titulo: 'Desde el navegador', texto: 'No hay que instalar nada. Anda igual en la compu y en el celular.' },
-  { emoji: '🔒', color: '--naranja', titulo: 'Sin vueltas', texto: 'Probala ya, sin crear una cuenta. Tus grupos quedan guardados en tu dispositivo.' },
+  { emoji: '📱', color: '--violeta', titulo: 'En vivo, desde el navegador', texto: 'No hay que instalar nada. Si alguien carga un gasto, lo ves aparecer al instante.' },
+  { emoji: '🔒', color: '--naranja', titulo: 'Solo con invitación', texto: 'Cada grupo lo ven únicamente sus integrantes. Entrás con Google o con un link por mail.' },
 ]
 
 const PREGUNTAS = [
@@ -22,7 +22,11 @@ const PREGUNTAS = [
     r: 'Suma lo que puso cada persona, le resta su parte de cada gasto y obtiene un saldo. Después empareja a quien más debe con quien más le deben, una y otra vez, hasta que todos quedan en cero. Así nunca hacen falta más transferencias que personas menos una.',
   },
   { p: '¿Qué pasa si el gasto no se divide justo?', r: 'Los centavos que sobran se reparten de a uno, para que la suma siempre cierre exacta.' },
-  { p: '¿Mis datos se comparten?', r: 'Por ahora los grupos se guardan solo en tu navegador. Pronto vas a poder crear una cuenta para compartirlos con tu grupo.' },
+  {
+    p: '¿Quién puede ver mis grupos?',
+    r: 'Solo sus integrantes. Para entrar hace falta el link de invitación y una cuenta. Si el link se comparte donde no debía, generás uno nuevo y el anterior deja de funcionar.',
+  },
+  { p: '¿Necesito contraseña?', r: 'No. Entrás con tu cuenta de Google o con un link que te llega por mail.' },
 ]
 
 export function Landing() {
