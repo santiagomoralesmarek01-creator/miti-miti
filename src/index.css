@@ -1460,3 +1460,44 @@ code {
 .chips--elegir .chip[aria-pressed='false'] {
   opacity: 1;
 }
+
+/* ============ Privacidad ============ */
+.legal {
+  max-width: 760px;
+}
+
+.legal .volver {
+  display: block;
+  width: fit-content;
+}
+
+.legal h1 {
+  font-size: clamp(2.2rem, 6vw, 3.4rem);
+  margin: 14px 0 16px;
+}
+
+.legal-bajada {
+  font-size: 1.15rem;
+  color: var(--tinta-suave);
+  margin-bottom: 32px;
+}
+
+.legal-seccion {
+  display: grid;
+  gap: 10px;
+  padding: 24px;
+  margin-bottom: 20px;
+}
+
+.legal-seccion h2 {
+  font-size: 1.4rem;
+}
+
+.legal-seccion p {
+  color: var(--tinta-suave);
+}
+
+.legal-pie {
+  margin-top: 28px;
+  color: var(--tinta-suave);
+}

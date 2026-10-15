@@ -187,7 +187,9 @@ export function Landing() {
           <span className="logo" style={{ fontSize: '1.1rem' }}>
             <LogoMark /> miti·miti
           </span>
-          <span>Hecho con React y TypeScript en Argentina.</span>
+          <span>
+            Hecho con React y TypeScript en Argentina · <Link to="/privacidad">Privacidad</Link>
+          </span>
         </div>
       </footer>
     </>
