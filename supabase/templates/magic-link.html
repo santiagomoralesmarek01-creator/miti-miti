@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light only">
+<title>Tu link para entrar a Miti-Miti</title>
+</head>
+<body style="margin:0; padding:0; background:#fff4d6;">
+<!-- Texto que muestran algunos clientes de correo al lado del asunto -->
+<div style="display:none; max-height:0; overflow:hidden;">Tocá el botón y entrás. Sin contraseñas.</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#fff4d6;">
+  <tr>
+    <td align="center" style="padding:32px 16px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:480px;">
+
+        <!-- Logo -->
+        <tr>
+          <td style="padding:0 0 20px; font-family:'Arial Black', Arial, sans-serif; font-size:24px; color:#121212;">
+            <span style="display:inline-block; width:22px; height:22px; border:3px solid #121212; border-radius:50%; background:linear-gradient(90deg, #ffd23f 50%, #ff6fb5 50%); background-color:#ffd23f; vertical-align:-5px;"></span>
+            &nbsp;miti&middot;miti
+          </td>
+        </tr>
+
+        <!-- Tarjeta -->
+        <tr>
+          <td style="background:#ffffff; border:3px solid #121212; border-radius:14px; padding:32px 28px; font-family:Arial, Helvetica, sans-serif; color:#121212;">
+            <p style="margin:0 0 14px;">
+              <span style="display:inline-block; padding:4px 12px; border:2px solid #121212; border-radius:999px; font-size:12px; font-weight:bold; letter-spacing:1px; text-transform:uppercase;">Entrar</span>
+            </p>
+            <h1 style="margin:0 0 14px; font-family:'Arial Black', Arial, sans-serif; font-size:30px; line-height:1.1; font-weight:900;">Tu link para entrar</h1>
+            <p style="margin:0 0 26px; font-size:16px; line-height:1.5; color:#4a4637;">Tocá el botón y entrás directo a tus grupos. Sin contraseñas, sin vueltas.</p>
+
+            <!-- Botón -->
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td style="background:#ffd23f; border:3px solid #121212; border-radius:999px; box-shadow:4px 4px 0 #121212;">
+                  <a href="{{ .ConfirmationURL }}" style="display:inline-block; padding:14px 30px; font-family:Arial, Helvetica, sans-serif; font-size:17px; font-weight:bold; color:#121212; text-decoration:none;">Entrar a Miti-Miti</a>
+                </td>
+              </tr>
+            </table>
+
+            <p style="margin:26px 0 0; font-size:13px; line-height:1.5; color:#4a4637;">
+              El link sirve una sola vez y vence en una hora. Abrilo en el mismo navegador
+              desde el que lo pediste.
+            </p>
+            <p style="margin:12px 0 0; font-size:13px; line-height:1.5; color:#4a4637;">
+              ¿El botón no anda? Copiá esta dirección en el navegador:<br>
+              <a href="{{ .ConfirmationURL }}" style="color:#121212; word-break:break-all;">{{ .ConfirmationURL }}</a>
+            </p>
+          </td>
+        </tr>
+
+        <!-- Pie -->
+        <tr>
+          <td style="padding:20px 4px 0; font-family:Arial, Helvetica, sans-serif; font-size:12px; line-height:1.5; color:#4a4637;">
+            Si no fuiste vos, ignorá este mail: nadie puede entrar a tu cuenta sin este link.<br>
+            Miti-Miti &middot; Las cuentas claras &middot; <a href="https://miti-miti.com.ar" style="color:#4a4637;">miti-miti.com.ar</a>
+          </td>
+        </tr>
+
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>

@@ -85,6 +85,12 @@ npm run build      # versión de producción en dist/
    Client ID y el Secret en *Authentication → Providers → Google*.
 4. **Vercel**: importá el repo y cargá las variables `VITE_SUPABASE_URL` y
    `VITE_SUPABASE_ANON_KEY`.
+5. **Mails**: el servidor de mails que trae Supabase solo manda a los miembros
+   del equipo del proyecto. Configurá un SMTP propio (por ejemplo Resend) en
+   *Authentication → Emails → SMTP Settings*, y pegá las plantillas en castellano
+   de `supabase/templates/` en *Authentication → Emails → Templates*:
+   `magic-link.html` en **Magic Link** y `confirm-signup.html` en
+   **Confirm signup**.
 
 ## Próximos pasos
 
