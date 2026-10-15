@@ -83,8 +83,11 @@ npm run build      # versión de producción en dist/
 3. **Google**: en Google Cloud creá un *OAuth client ID* (tipo Web) con la
    *redirect URI* `https://TU-PROYECTO.supabase.co/auth/v1/callback`, y cargá el
    Client ID y el Secret en *Authentication → Providers → Google*.
-4. **Vercel**: importá el repo y cargá las variables `VITE_SUPABASE_URL` y
-   `VITE_SUPABASE_ANON_KEY`.
+4. **Vercel**: importá el repo y cargá las variables `VITE_SUPABASE_URL`,
+   `VITE_SUPABASE_ANON_KEY` y `VITE_GOOGLE_CLIENT_ID` (el Client ID de Google;
+   con él se usa el botón oficial y la pantalla de Google muestra tu dominio).
+   El dominio de la web tiene que estar en *Authorized JavaScript origins* del
+   cliente de Google.
 5. **Mails**: el servidor de mails que trae Supabase solo manda a los miembros
    del equipo del proyecto. Configurá un SMTP propio (por ejemplo Resend) en
    *Authentication → Emails → SMTP Settings*, y pegá las plantillas en castellano

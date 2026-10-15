@@ -1529,3 +1529,26 @@ code {
   background: color-mix(in srgb, var(--amarillo) 25%, var(--papel));
   font-size: 0.95rem;
 }
+
+/* ============ Botón oficial de Google ============ */
+.boton-google {
+  display: grid;
+  place-items: center;
+  min-height: 64px;
+  padding: 10px;
+  border: var(--borde);
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: var(--sombra-chica);
+}
+
+.boton-google-lugar {
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  justify-content: center;
+}
+
+.boton-google--cargando {
+  background: color-mix(in srgb, var(--papel) 70%, var(--fondo));
+}
