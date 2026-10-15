@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatMoney, parseMoney } from './money'
+import { centsToInput, formatMoney, parseMoney } from './money'
 
 describe('parseMoney', () => {
   it.each([
@@ -23,5 +23,17 @@ describe('parseMoney', () => {
 describe('formatMoney', () => {
   it('usa el formato argentino', () => {
     expect(formatMoney(150050, 'ARS').replace(/\s/g, ' ')).toBe('$ 1.500,5')
+  })
+})
+
+describe('centsToInput', () => {
+  it.each([
+    [7500000, '75000'],
+    [150050, '1500,5'],
+    [150005, '1500,05'],
+    [99, '0,99'],
+  ])('muestra %i como %s y se vuelve a leer igual', (cents, text) => {
+    expect(centsToInput(cents)).toBe(text)
+    expect(parseMoney(text)).toBe(cents)
   })
 })

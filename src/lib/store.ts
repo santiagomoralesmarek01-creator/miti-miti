@@ -151,6 +151,21 @@ export async function addExpense(groupId: string, input: Omit<Expense, 'id' | 'c
   await loadGroup(groupId)
 }
 
+export async function updateExpense(groupId: string, expenseId: string, input: Omit<Expense, 'id' | 'createdAt'>) {
+  const { error } = await db()
+    .from('expenses')
+    .update({
+      description: input.description,
+      emoji: input.emoji,
+      amount: input.amount,
+      payer_id: input.payerId,
+      participant_ids: input.participantIds,
+    })
+    .eq('id', expenseId)
+  if (error) fail('guardar los cambios')
+  await loadGroup(groupId)
+}
+
 export async function deleteExpense(groupId: string, expenseId: string) {
   const { error } = await db().from('expenses').delete().eq('id', expenseId)
   if (error) fail('borrar el gasto')

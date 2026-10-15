@@ -27,6 +27,13 @@ export function formatMoney(cents: number, currency: Currency): string {
   return fmt.format(cents / 100)
 }
 
+/** Centavos al texto que se muestra en un campo para editarlo: 150050 → "1500,5". */
+export function centsToInput(cents: number): string {
+  const whole = Math.floor(cents / 100)
+  const frac = cents % 100
+  return frac === 0 ? String(whole) : `${whole},${String(frac).padStart(2, '0').replace(/0$/, '')}`
+}
+
 /**
  * Convierte lo que escribe una persona en centavos.
  * Acepta "1500", "1.500", "1.500,50", "1500,5", "1500.50" y "$ 1.500".

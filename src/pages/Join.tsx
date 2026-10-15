@@ -75,6 +75,11 @@ export function Join() {
                 <input value={name} onChange={(e) => setName(e.target.value)} maxLength={30} autoFocus />
               </label>
             )}
+            {choice === 'nuevo' && (
+              <p className="aviso" style={{ marginBottom: 16 }}>
+                Los gastos que ya estén cargados no te incluyen. Quien los cargó puede editarlos para sumarte.
+              </p>
+            )}
 
             <button className="boton boton--grande boton--ancho" onClick={join} disabled={!choice || busy}>
               {busy ? 'Entrando…' : 'Entrar al grupo'}

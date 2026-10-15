@@ -52,6 +52,10 @@ select pg_temp.fails(format(
   'insert into expenses (group_id, description, amount, payer_id, participant_ids) values (%L, ''x'', 100, %L, array[%L]::uuid[])',
   (select gid from ctx), (select ana from ctx), (select ana from ctx)), 'Caro no puede cargar gastos');
 select pg_temp.fails(format('select reset_invite(%L)', (select gid from ctx)), 'Caro no puede regenerar el link');
+update expenses set amount = 1 where description = 'Carne';
+reset role;
+select pg_temp.check((select amount from expenses where description = 'Carne') = 3000000, 'Caro no puede editar gastos ajenos');
+set role authenticated;
 select pg_temp.fails('select join_group(''codigo-falso'', null, ''Caro'')', 'Un código falso no sirve');
 
 -- Beto abre el link: ve el grupo y quiénes faltan reclamar.
@@ -72,12 +76,26 @@ select pg_temp.fails('insert into groups (name) values (''Sin función'')', 'Los
 update members set name = 'Nicolás' where id = (select nico from ctx);
 select pg_temp.check((select name from members where id = (select nico from ctx)) = 'Nicolás', 'Se puede renombrar a un integrante');
 
+-- Editar gastos: un integrante puede sumar gente a un gasto ya cargado.
+update expenses set participant_ids = array_remove(participant_ids, (select nico from ctx where code is not null))
+  where description = 'Carne';
+update expenses set participant_ids = participant_ids || (select nico from ctx where code is not null)
+  where description = 'Carne';
+select pg_temp.check((select cardinality(participant_ids) from expenses where description = 'Carne') = 3,
+  'Beto edita un gasto para sacar y volver a sumar a alguien');
+select pg_temp.fails(format('update expenses set participant_ids = participant_ids || %L::uuid where description = %L',
+  (select nico from ctx where code is not null), 'Carne'), 'Nadie puede figurar dos veces en un gasto');
+select pg_temp.fails(format('update expenses set group_id = gen_random_uuid() where description = %L', 'Carne'),
+  'No se puede mover un gasto a otro grupo');
+
 -- Gastos y pagos solo con integrantes del mismo grupo.
 insert into ctx (gid) select create_group('Otro', '🏠', 'USD', 'Beto solo', '{}');
 select pg_temp.fails(format(
   'insert into expenses (group_id, description, amount, payer_id, participant_ids) values (%L, ''x'', 100, %L, array[%L]::uuid[])',
   (select gid from ctx where code is not null), (select beto from ctx where code is not null),
   (select id from members where name = 'Beto solo')), 'No se mezclan integrantes de otro grupo');
+select pg_temp.fails(format('update expenses set participant_ids = array[%L]::uuid[] where description = %L',
+  (select id from members where name = 'Beto solo'), 'Carne'), 'No se puede editar un gasto con gente de otro grupo');
 select pg_temp.fails(format('insert into payments (group_id, from_id, to_id, amount) values (%L, %L, %L, 0)',
   (select gid from ctx where code is not null), (select beto from ctx where code is not null), (select ana from ctx where code is not null)), 'Un pago tiene que ser mayor a cero');
 insert into payments (group_id, from_id, to_id, amount)

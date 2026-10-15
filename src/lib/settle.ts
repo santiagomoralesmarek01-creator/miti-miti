@@ -28,8 +28,9 @@ export function computeBalances(group: { members: { id: string }[] } & Pick<Grou
   for (const e of group.expenses) {
     if (e.participantIds.length === 0) continue
     add(e.payerId, e.amount)
-    // Se ordena para que el centavo sobrante caiga siempre en la misma persona.
-    const ids = [...e.participantIds].sort()
+    // Sin repetidos (nadie paga doble) y ordenados, para que el centavo
+    // sobrante caiga siempre en la misma persona.
+    const ids = [...new Set(e.participantIds)].sort()
     splitEvenly(e.amount, ids.length).forEach((share, i) => add(ids[i], -share))
   }
 

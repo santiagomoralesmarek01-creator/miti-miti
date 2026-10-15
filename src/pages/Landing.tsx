@@ -56,6 +56,7 @@ export function Landing() {
 
             <div className="hero-visual" aria-hidden="true">
               <div className="ticket ticket--1 caja">
+                <div className="sticker">¡a mano!</div>
                 <p className="etiqueta">🏖️ Finde en la costa</p>
                 <p className="monto" style={{ marginTop: 12 }}>
                   $ 136.500
@@ -63,11 +64,6 @@ export function Landing() {
                 <p>gastados entre 4</p>
               </div>
               <div className="ticket ticket--2 caja">
-                <div className="sticker">
-                  ¡a
-                  <br />
-                  mano!
-                </div>
                 {[
                   ['⛽', 'Nafta', '$ 48.000'],
                   ['🛒', 'Súper', '$ 32.600'],

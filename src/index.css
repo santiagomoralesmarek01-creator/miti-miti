@@ -437,30 +437,39 @@ select {
 
 .sticker {
   position: absolute;
-  top: -22px;
-  left: -18px;
+  top: -40px;
+  right: -26px;
   z-index: 4;
   display: grid;
   place-items: center;
-  width: 92px;
-  height: 92px;
+  width: 104px;
+  height: 104px;
+  white-space: nowrap;
   border: var(--borde);
   border-radius: 50%;
   background: var(--amarillo);
   color: var(--sobre-color);
   font-family: var(--fuente-titulo);
-  font-size: 0.85rem;
-  line-height: 1.05;
+  font-size: 0.95rem;
+  line-height: 1;
   text-align: center;
-  transform: rotate(-14deg);
+  transform: rotate(12deg);
   box-shadow: var(--sombra-chica);
-  animation: girar 14s linear infinite;
+  animation: balancear 3.5s ease-in-out infinite;
 }
 
-@keyframes girar {
-  to {
-    transform: rotate(346deg);
+@keyframes balancear {
+  50% {
+    transform: rotate(-8deg) scale(1.05);
   }
+}
+
+/* Las etiquetas sobre tarjetas de color van siempre en blanco y negro,
+   para que se lean igual en modo claro y oscuro. */
+.ticket .etiqueta {
+  background: #fff;
+  color: var(--sobre-color);
+  border-color: var(--sobre-color);
 }
 
 @media (max-width: 860px) {
@@ -1500,4 +1509,23 @@ code {
 .legal-pie {
   margin-top: 28px;
   color: var(--tinta-suave);
+}
+
+/* ============ Editar gastos ============ */
+.acciones-gasto {
+  display: flex;
+  gap: 6px;
+  justify-self: end;
+}
+
+.icono-boton--editar:hover {
+  background: var(--amarillo);
+}
+
+.aviso {
+  padding: 12px 14px;
+  border: 2px dashed var(--linea);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--amarillo) 25%, var(--papel));
+  font-size: 0.95rem;
 }

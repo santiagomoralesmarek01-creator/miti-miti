@@ -9,9 +9,9 @@ import { Cargando } from '../components/RequireAuth'
 import { currentUserId } from '../lib/auth'
 import { formatMoney } from '../lib/money'
 import { computeBalances, suggestTransfers, totalSpent } from '../lib/settle'
-import { addMember, addPayment, deleteExpense, deleteGroup, deletePayment, useGroup } from '../lib/store'
+import { addMember, addPayment, deleteExpense, deleteGroup, deletePayment, myMember, useGroup } from '../lib/store'
 import { attempt, showToast } from '../lib/toast'
-import type { Group } from '../lib/types'
+import type { Expense, Group } from '../lib/types'
 
 type Tab = 'gastos' | 'saldos'
 
@@ -20,6 +20,7 @@ export function GroupPage() {
   const { group, notFound } = useGroup(id)
   const [tab, setTab] = useState<Tab>('gastos')
   const [dialog, setDialog] = useState<'gasto' | 'invitar' | null>(null)
+  const [editing, setEditing] = useState<Expense | null>(null)
 
   if (notFound) {
     return (
@@ -69,7 +70,11 @@ export function GroupPage() {
         </div>
 
         <div role="tabpanel">
-          {tab === 'gastos' ? <Activity group={group} onAdd={() => setDialog('gasto')} /> : <Balances group={group} />}
+          {tab === 'gastos' ? (
+            <Activity group={group} onAdd={() => setDialog('gasto')} onEdit={setEditing} />
+          ) : (
+            <Balances group={group} />
+          )}
         </div>
 
         {group.createdBy === currentUserId() && <DangerZone group={group} />}
@@ -84,6 +89,9 @@ export function GroupPage() {
       <Modal open={dialog === 'gasto'} onClose={() => setDialog(null)} label="Nuevo gasto">
         <ExpenseForm group={group} onDone={() => setDialog(null)} />
       </Modal>
+      <Modal open={editing !== null} onClose={() => setEditing(null)} label="Editar gasto">
+        {editing && <ExpenseForm group={group} expense={editing} onDone={() => setEditing(null)} />}
+      </Modal>
       <Modal open={dialog === 'invitar'} onClose={() => setDialog(null)} label="Invitar al grupo">
         <InviteDialog group={group} onClose={() => setDialog(null)} />
       </Modal>
@@ -92,7 +100,10 @@ export function GroupPage() {
 }
 
 function Summary({ group }: { group: Group }) {
-  const pending = useMemo(() => suggestTransfers(computeBalances(group)), [group])
+  const balances = useMemo(() => computeBalances(group), [group])
+  const pending = useMemo(() => suggestTransfers(balances), [balances])
+  const me = myMember(group)
+  const mine = me ? (balances.get(me.id) ?? 0) : 0
   return (
     <div className="resumen">
       <div className="dato caja">
@@ -100,8 +111,8 @@ function Summary({ group }: { group: Group }) {
         <p className="valor">{formatMoney(totalSpent(group), group.currency)}</p>
       </div>
       <div className="dato caja">
-        <p className="rotulo">Por persona</p>
-        <p className="valor">{formatMoney(Math.round(totalSpent(group) / Math.max(group.members.length, 1)), group.currency)}</p>
+        <p className="rotulo">{mine > 0 ? 'Te deben' : mine < 0 ? 'Debés' : 'Tu saldo'}</p>
+        <p className="valor">{mine === 0 ? '¡A mano!' : formatMoney(Math.abs(mine), group.currency)}</p>
       </div>
       <div className="dato caja">
         <p className="rotulo">Transferencias pendientes</p>
@@ -169,7 +180,7 @@ function Members({ group }: { group: Group }) {
   )
 }
 
-function Activity({ group, onAdd }: { group: Group; onAdd: () => void }) {
+function Activity({ group, onAdd, onEdit }: { group: Group; onAdd: () => void; onEdit: (e: Expense) => void }) {
   const name = (id: string) => group.members.find((m) => m.id === id)?.name ?? '¿?'
   const items = [
     ...group.expenses.map((e) => ({ kind: 'gasto' as const, at: e.createdAt, e })),
@@ -200,17 +211,26 @@ function Activity({ group, onAdd }: { group: Group; onAdd: () => void }) {
               <h3>{it.e.description}</h3>
               <p className="detalle">
                 Pagó <strong>{name(it.e.payerId)}</strong> ·{' '}
-                {it.e.participantIds.length === group.members.length ? 'entre todos' : `entre ${it.e.participantIds.map(name).join(', ')}`}
+                {it.e.participantIds.length === 1
+                  ? `solo para ${name(it.e.participantIds[0])}`
+                  : it.e.participantIds.length === group.members.length
+                    ? 'entre todos'
+                    : `entre ${it.e.participantIds.map(name).join(', ')}`}
               </p>
             </div>
             <span className="monto">{formatMoney(it.e.amount, group.currency)}</span>
-            <button
-              className="icono-boton"
-              aria-label={`Borrar ${it.e.description}`}
-              onClick={() => confirm(`¿Borrar "${it.e.description}"?`) && void attempt(() => deleteExpense(group.id, it.e.id))}
-            >
-              ✕
-            </button>
+            <span className="acciones-gasto">
+              <button className="icono-boton icono-boton--editar" aria-label={`Editar ${it.e.description}`} onClick={() => onEdit(it.e)}>
+                ✎
+              </button>
+              <button
+                className="icono-boton"
+                aria-label={`Borrar ${it.e.description}`}
+                onClick={() => confirm(`¿Borrar "${it.e.description}"?`) && void attempt(() => deleteExpense(group.id, it.e.id))}
+              >
+                ✕
+              </button>
+            </span>
           </article>
         ) : (
           <article className="gasto gasto--pago caja" key={it.p.id}>
@@ -224,13 +244,15 @@ function Activity({ group, onAdd }: { group: Group; onAdd: () => void }) {
               <p className="detalle">Pago para saldar deudas</p>
             </div>
             <span className="monto">{formatMoney(it.p.amount, group.currency)}</span>
-            <button
-              className="icono-boton"
-              aria-label="Deshacer pago"
-              onClick={() => confirm('¿Deshacer este pago?') && void attempt(() => deletePayment(group.id, it.p.id))}
-            >
-              ✕
-            </button>
+            <span className="acciones-gasto">
+              <button
+                className="icono-boton"
+                aria-label="Deshacer pago"
+                onClick={() => confirm('¿Deshacer este pago?') && void attempt(() => deletePayment(group.id, it.p.id))}
+              >
+                ✕
+              </button>
+            </span>
           </article>
         ),
       )}

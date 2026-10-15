@@ -1,18 +1,23 @@
 import { useState, type FormEvent } from 'react'
-import { formatMoney, parseMoney } from '../lib/money'
+import { centsToInput, formatMoney, parseMoney } from '../lib/money'
 import { splitEvenly } from '../lib/settle'
-import { addExpense, myMember } from '../lib/store'
-import type { Group } from '../lib/types'
+import { addExpense, myMember, updateExpense } from '../lib/store'
+import type { Expense, Group } from '../lib/types'
 import { Avatar } from './Avatar'
 
 const EMOJIS = ['🛒', '🍕', '🍖', '🍻', '⛽', '🚕', '🏠', '🎟️', '☕', '💡', '🎁', '💸']
 
-export function ExpenseForm({ group, onDone }: { group: Group; onDone: () => void }) {
-  const [description, setDescription] = useState('')
-  const [emoji, setEmoji] = useState(EMOJIS[0])
-  const [amountText, setAmountText] = useState('')
-  const [payerId, setPayerId] = useState(myMember(group)?.id ?? group.members[0]?.id ?? '')
-  const [participants, setParticipants] = useState<string[]>(group.members.map((m) => m.id))
+/** Sin `expense` carga un gasto nuevo; con `expense` lo edita. */
+export function ExpenseForm({ group, expense, onDone }: { group: Group; expense?: Expense; onDone: () => void }) {
+  const [description, setDescription] = useState(expense?.description ?? '')
+  const [emoji, setEmoji] = useState(expense?.emoji ?? EMOJIS[0])
+  const [amountText, setAmountText] = useState(expense ? centsToInput(expense.amount) : '')
+  const [payerId, setPayerId] = useState(expense?.payerId ?? myMember(group)?.id ?? group.members[0]?.id ?? '')
+  const [participants, setParticipants] = useState<string[]>(
+    // Al editar, se ignoran integrantes que ya no existen.
+    expense ? expense.participantIds.filter((id) => group.members.some((m) => m.id === id)) : group.members.map((m) => m.id),
+  )
+  const emojis = expense && !EMOJIS.includes(expense.emoji) ? [expense.emoji, ...EMOJIS] : EMOJIS
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -30,7 +35,9 @@ export function ExpenseForm({ group, onDone }: { group: Group; onDone: () => voi
     setBusy(true)
     setError('')
     try {
-      await addExpense(group.id, { description: description.trim(), emoji, amount, payerId, participantIds: participants })
+      const data = { description: description.trim(), emoji, amount, payerId, participantIds: participants }
+      if (expense) await updateExpense(group.id, expense.id, data)
+      else await addExpense(group.id, data)
       onDone()
     } catch (err) {
       setError((err as Error).message)
@@ -40,10 +47,17 @@ export function ExpenseForm({ group, onDone }: { group: Group; onDone: () => voi
 
   return (
     <form className="formulario caja" onSubmit={submit}>
-      <h2>Nuevo gasto</h2>
+      <h2>{expense ? 'Editar gasto' : 'Nuevo gasto'}</h2>
+
+      {group.members.length === 1 && (
+        <p className="aviso">
+          Por ahora sos la única persona del grupo, así que este gasto queda solo para vos. Invitá a tu gente con 🔗 <strong>Invitar</strong> antes de
+          cargar gastos compartidos (o después editalo para sumarla).
+        </p>
+      )}
 
       <div className="selector-emoji" role="group" aria-label="Ícono del gasto">
-        {EMOJIS.map((em) => (
+        {emojis.map((em) => (
           <button type="button" key={em} aria-pressed={em === emoji} onClick={() => setEmoji(em)} aria-label={`Elegir ${em}`}>
             {em}
           </button>
@@ -101,7 +115,7 @@ export function ExpenseForm({ group, onDone }: { group: Group; onDone: () => voi
           Cancelar
         </button>
         <button type="submit" className="boton" disabled={busy}>
-          {busy ? 'Guardando…' : 'Guardar gasto'}
+          {busy ? 'Guardando…' : expense ? 'Guardar cambios' : 'Guardar gasto'}
         </button>
       </div>
     </form>

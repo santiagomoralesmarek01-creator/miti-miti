@@ -36,6 +36,11 @@ describe('computeBalances', () => {
     expect(Object.fromEntries(b)).toEqual({ ana: -1500, beto: 3000, caro: -1500, dani: 0 })
   })
 
+  it('no cobra doble si alguien figura repetido', () => {
+    const b = computeBalances({ members, expenses: [expense('ana', 2000, ['ana', 'beto', 'beto'])], payments: [] })
+    expect(Object.fromEntries(b)).toEqual({ ana: 1000, beto: -1000, caro: 0, dani: 0 })
+  })
+
   it('descuenta los pagos ya hechos', () => {
     const payments: Payment[] = [{ id: 'p', fromId: 'beto', toId: 'ana', amount: 1000, createdAt: '' }]
     const b = computeBalances({ members, expenses: [expense('ana', 2000, ['ana', 'beto'])], payments })
