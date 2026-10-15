@@ -5,6 +5,23 @@ import { Header } from '../components/Header'
 import { signInWithEmail, signInWithGoogle, useSession } from '../lib/auth'
 import { isConfigured } from '../lib/supabase'
 
+/**
+ * Mensaje para cuando Supabase vuelve con un error (en la query o en el #)
+ * o con un código que no pudo canjear. Muestra también el detalle técnico,
+ * así un problema de configuración no queda escondido.
+ */
+function returnError(params: URLSearchParams): string {
+  const hash = new URLSearchParams(window.location.hash.slice(1))
+  const detail = params.get('error_description') ?? hash.get('error_description')
+  if (detail) {
+    console.error('Ingreso fallido:', detail)
+    const expired = /expired|invalid|already/i.test(detail) && !/exchange/i.test(detail)
+    return expired ? 'El link venció o ya se usó. Pedí uno nuevo.' : `No se pudo entrar (${detail}). Probá de nuevo.`
+  }
+  if (params.has('code')) return 'No se pudo completar el ingreso. Probá de nuevo desde este mismo navegador.'
+  return ''
+}
+
 /** Solo se aceptan rutas internas, para que nadie arme un link que lleve a otro sitio. */
 function safeNext(raw: string | null) {
   return raw && raw.startsWith('/') && !raw.startsWith('//') ? raw : '/app'
@@ -17,7 +34,7 @@ export function Login() {
   const [email, setEmail] = useState('')
   const [sentTo, setSentTo] = useState('')
   const [busy, setBusy] = useState<'google' | 'email' | null>(null)
-  const [error, setError] = useState(params.has('error_description') ? 'El link venció o ya se usó. Pedí uno nuevo.' : '')
+  const [error, setError] = useState(() => returnError(params))
 
   if (!isConfigured) return <FaltaConfigurar />
   if (session) return <Navigate to={next} replace />
