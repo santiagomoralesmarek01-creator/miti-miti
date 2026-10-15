@@ -76,17 +76,37 @@ select pg_temp.fails('insert into groups (name) values (''Sin función'')', 'Los
 update members set name = 'Nicolás' where id = (select nico from ctx);
 select pg_temp.check((select name from members where id = (select nico from ctx)) = 'Nicolás', 'Se puede renombrar a un integrante');
 
--- Editar gastos: un integrante puede sumar gente a un gasto ya cargado.
+-- Lo que cargó otra persona no se edita ni se borra.
+update expenses set amount = 1 where description = 'Carne';
+delete from expenses where description = 'Carne';
+select pg_temp.check((select amount from expenses where description = 'Carne') = 3000000,
+  'Beto no puede editar ni borrar el gasto que cargó Ana');
+select pg_temp.fails(format(
+  'insert into expenses (group_id, description, amount, payer_id, participant_ids, created_by) values (%L, ''Trucho'', 100, %L, array[%L]::uuid[], %L)',
+  (select gid from ctx where code is not null), (select beto from ctx where code is not null), (select beto from ctx where code is not null),
+  '00000000-0000-0000-0000-00000000000a'), 'Beto no puede cargar un gasto a nombre de Ana');
+insert into expenses (group_id, description, amount, payer_id, participant_ids)
+  select gid, 'Hielo', 50000, beto, array[ana, beto] from ctx where code is not null;
+update expenses set amount = 60000 where description = 'Hielo';
+select pg_temp.check((select amount from expenses where description = 'Hielo') = 60000, 'Beto edita el gasto que cargó él');
+delete from expenses where description = 'Hielo';
+select pg_temp.check((select count(*) from expenses where description = 'Hielo') = 0, 'Beto borra el gasto que cargó él');
+
+-- Ana edita lo suyo: puede sacar y volver a sumar gente.
+set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000a';
 update expenses set participant_ids = array_remove(participant_ids, (select nico from ctx where code is not null))
   where description = 'Carne';
 update expenses set participant_ids = participant_ids || (select nico from ctx where code is not null)
   where description = 'Carne';
 select pg_temp.check((select cardinality(participant_ids) from expenses where description = 'Carne') = 3,
-  'Beto edita un gasto para sacar y volver a sumar a alguien');
+  'Ana edita su gasto para sacar y volver a sumar a alguien');
 select pg_temp.fails(format('update expenses set participant_ids = participant_ids || %L::uuid where description = %L',
   (select nico from ctx where code is not null), 'Carne'), 'Nadie puede figurar dos veces en un gasto');
 select pg_temp.fails(format('update expenses set group_id = gen_random_uuid() where description = %L', 'Carne'),
   'No se puede mover un gasto a otro grupo');
+select pg_temp.fails(format('update expenses set created_by = %L where description = %L', '00000000-0000-0000-0000-00000000000b', 'Carne'),
+  'No se puede cambiar quién cargó un gasto');
+set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000b';
 
 -- Gastos y pagos solo con integrantes del mismo grupo.
 insert into ctx (gid) select create_group('Otro', '🏠', 'USD', 'Beto solo', '{}');
@@ -94,13 +114,24 @@ select pg_temp.fails(format(
   'insert into expenses (group_id, description, amount, payer_id, participant_ids) values (%L, ''x'', 100, %L, array[%L]::uuid[])',
   (select gid from ctx where code is not null), (select beto from ctx where code is not null),
   (select id from members where name = 'Beto solo')), 'No se mezclan integrantes de otro grupo');
+insert into expenses (group_id, description, amount, payer_id, participant_ids)
+  select gid, 'Pan', 20000, beto, array[ana, beto] from ctx where code is not null;
 select pg_temp.fails(format('update expenses set participant_ids = array[%L]::uuid[] where description = %L',
-  (select id from members where name = 'Beto solo'), 'Carne'), 'No se puede editar un gasto con gente de otro grupo');
+  (select id from members where name = 'Beto solo'), 'Pan'), 'No se puede editar un gasto con gente de otro grupo');
 select pg_temp.fails(format('insert into payments (group_id, from_id, to_id, amount) values (%L, %L, %L, 0)',
   (select gid from ctx where code is not null), (select beto from ctx where code is not null), (select ana from ctx where code is not null)), 'Un pago tiene que ser mayor a cero');
 insert into payments (group_id, from_id, to_id, amount)
   select gid, beto, ana, 1000000 from ctx where code is not null;
 select pg_temp.check((select count(*) from payments) = 1, 'Beto registra un pago');
+set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000a';
+delete from payments;
+select pg_temp.check((select count(*) from payments) = 1, 'Ana no puede deshacer el pago que registró Beto');
+set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000b';
+delete from payments;
+select pg_temp.check((select count(*) from payments) = 0, 'Beto deshace el pago que registró él');
+select pg_temp.fails(format('insert into payments (group_id, from_id, to_id, amount, created_by) values (%L, %L, %L, 100, %L)',
+  (select gid from ctx where code is not null), (select beto from ctx where code is not null), (select ana from ctx where code is not null),
+  '00000000-0000-0000-0000-00000000000a'), 'Beto no puede registrar un pago a nombre de Ana');
 
 -- Regenerar el link invalida el anterior.
 select reset_invite((select gid from ctx where code is not null));

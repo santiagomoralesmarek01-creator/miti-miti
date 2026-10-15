@@ -19,7 +19,7 @@ export function MiniDemo() {
     const ids = members.map((m) => m.id)
     const expenses = rows.flatMap((r, i) => {
       const amount = parseMoney(r.paid)
-      return amount ? [{ id: String(i), description: '', emoji: '', amount, payerId: String(i), participantIds: ids, createdAt: '' }] : []
+      return amount ? [{ id: String(i), description: '', emoji: '', amount, payerId: String(i), participantIds: ids, createdBy: null, createdAt: '' }] : []
     })
     return suggestTransfers(computeBalances({ members, expenses, payments: [] })).map((t) => ({
       ...t,

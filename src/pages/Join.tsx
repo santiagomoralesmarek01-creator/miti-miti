@@ -77,7 +77,7 @@ export function Join() {
             )}
             {choice === 'nuevo' && (
               <p className="aviso" style={{ marginBottom: 16 }}>
-                Los gastos que ya estén cargados no te incluyen. Quien los cargó puede editarlos para sumarte.
+                Los gastos que ya estén cargados no te incluyen. Pedile a quien los cargó que los edite para sumarte.
               </p>
             )}
 

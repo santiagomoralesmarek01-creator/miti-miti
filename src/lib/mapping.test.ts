@@ -14,8 +14,8 @@ const row: GroupRow = {
     { id: 'm1', name: 'Ana', user_id: 'u1', created_at: '2026-10-01T10:00:01Z' },
   ],
   expenses: [
-    { id: 'e1', description: 'Carne', emoji: '🍖', amount: '300000', payer_id: 'm1', participant_ids: ['m1', 'm2'], created_at: '2026-10-01T11:00:00Z' },
-    { id: 'e2', description: 'Hielo', emoji: '🧊', amount: 5000, payer_id: 'm2', participant_ids: ['m1', 'm2'], created_at: '2026-10-01T12:00:00Z' },
+    { id: 'e1', description: 'Carne', emoji: '🍖', amount: '300000', payer_id: 'm1', participant_ids: ['m1', 'm2'], created_by: 'u1', created_at: '2026-10-01T11:00:00Z' },
+    { id: 'e2', description: 'Hielo', emoji: '🧊', amount: 5000, payer_id: 'm2', participant_ids: ['m1', 'm2'], created_by: null, created_at: '2026-10-01T12:00:00Z' },
   ],
   payments: [],
 }
@@ -36,5 +36,6 @@ describe('rowToGroup', () => {
     expect(g.inviteCode).toBe('abc')
     expect(g.members[0].userId).toBe('u1')
     expect(g.expenses[0].payerId).toBe('m2')
+    expect(g.expenses[1].createdBy).toBe('u1')
   })
 })

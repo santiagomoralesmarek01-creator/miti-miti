@@ -68,27 +68,52 @@ export function useGroups() {
   return { groups, status: s.listStatus }
 }
 
+/** Cada cuánto se vuelve a traer el grupo por si el tiempo real se cortó sin avisar. */
+const SAFETY_REFRESH_MS = 20_000
+
 /** Trae un grupo y lo mantiene al día en tiempo real mientras la página está abierta. */
 export function useGroup(id: string | undefined) {
   useEffect(() => {
     if (!id) return
     void loadGroup(id)
 
+    let active = true
     let timer: ReturnType<typeof setTimeout> | undefined
     const refresh = () => {
       clearTimeout(timer)
       timer = setTimeout(() => void loadGroup(id), 150)
     }
-    const channel = db().channel(`grupo-${id}`)
-    for (const table of ['members', 'expenses', 'payments']) {
-      channel.on('postgres_changes', { event: '*', schema: 'public', table, filter: `group_id=eq.${id}` }, refresh)
-    }
-    channel.on('postgres_changes', { event: '*', schema: 'public', table: 'groups', filter: `id=eq.${id}` }, refresh)
-    channel.subscribe()
+
+    // Se espera a que el canal tenga la sesión antes de suscribirse: si no, la
+    // suscripción puede salir dos veces y Supabase la cierra sin avisar.
+    // El nombre es único para que una suscripción vieja no cierre la nueva.
+    let channel: ReturnType<ReturnType<typeof db>['channel']> | null = null
+    void db()
+      .realtime.setAuth()
+      .catch(() => {})
+      .then(() => {
+        if (!active) return
+        channel = db().channel(`grupo-${id}-${crypto.randomUUID()}`)
+        for (const table of ['members', 'expenses', 'payments']) {
+          channel.on('postgres_changes', { event: '*', schema: 'public', table, filter: `group_id=eq.${id}` }, refresh)
+        }
+        channel.on('postgres_changes', { event: '*', schema: 'public', table: 'groups', filter: `id=eq.${id}` }, refresh)
+        // Al quedar suscripto se vuelve a traer el grupo, por si algo cambió mientras tanto.
+        channel.subscribe((status) => status === 'SUBSCRIBED' && refresh())
+      })
+
+    // Red de seguridad: al volver a la pestaña (el celular corta la conexión al
+    // bloquear la pantalla) y cada tanto mientras está visible.
+    const onVisible = () => document.visibilityState === 'visible' && refresh()
+    document.addEventListener('visibilitychange', onVisible)
+    const interval = setInterval(() => document.visibilityState === 'visible' && refresh(), SAFETY_REFRESH_MS)
 
     return () => {
+      active = false
       clearTimeout(timer)
-      void db().removeChannel(channel)
+      clearInterval(interval)
+      document.removeEventListener('visibilitychange', onVisible)
+      if (channel) void db().removeChannel(channel)
     }
   }, [id])
 
@@ -138,7 +163,7 @@ export async function addMember(groupId: string, name: string) {
   await loadGroup(groupId)
 }
 
-export async function addExpense(groupId: string, input: Omit<Expense, 'id' | 'createdAt'>) {
+export async function addExpense(groupId: string, input: Omit<Expense, 'id' | 'createdAt' | 'createdBy'>) {
   const { error } = await db().from('expenses').insert({
     group_id: groupId,
     description: input.description,
@@ -151,7 +176,7 @@ export async function addExpense(groupId: string, input: Omit<Expense, 'id' | 'c
   await loadGroup(groupId)
 }
 
-export async function updateExpense(groupId: string, expenseId: string, input: Omit<Expense, 'id' | 'createdAt'>) {
+export async function updateExpense(groupId: string, expenseId: string, input: Omit<Expense, 'id' | 'createdAt' | 'createdBy'>) {
   const { error } = await db()
     .from('expenses')
     .update({
@@ -172,7 +197,7 @@ export async function deleteExpense(groupId: string, expenseId: string) {
   await loadGroup(groupId)
 }
 
-export async function addPayment(groupId: string, input: Omit<Payment, 'id' | 'createdAt'>) {
+export async function addPayment(groupId: string, input: Omit<Payment, 'id' | 'createdAt' | 'createdBy'>) {
   const { error } = await db().from('payments').insert({ group_id: groupId, from_id: input.fromId, to_id: input.toId, amount: input.amount })
   if (error) fail('registrar el pago')
   await loadGroup(groupId)

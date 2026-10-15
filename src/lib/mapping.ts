@@ -18,9 +18,10 @@ export interface GroupRow {
     amount: number | string
     payer_id: string
     participant_ids: string[]
+    created_by: string | null
     created_at: string
   }[]
-  payments: { id: string; from_id: string; to_id: string; amount: number | string; created_at: string }[]
+  payments: { id: string; from_id: string; to_id: string; amount: number | string; created_by: string | null; created_at: string }[]
 }
 
 export const GROUP_SELECT = '*, members(*), expenses(*), payments(*)'
@@ -50,11 +51,12 @@ export function rowToGroup(row: GroupRow): Group {
         amount: Number(e.amount),
         payerId: e.payer_id,
         participantIds: e.participant_ids,
+        createdBy: e.created_by,
         createdAt: e.created_at,
       })),
     payments: [...row.payments]
       .sort(byDate)
       .reverse()
-      .map((p) => ({ id: p.id, fromId: p.from_id, toId: p.to_id, amount: Number(p.amount), createdAt: p.created_at })),
+      .map((p) => ({ id: p.id, fromId: p.from_id, toId: p.to_id, amount: Number(p.amount), createdBy: p.created_by, createdAt: p.created_at })),
   }
 }

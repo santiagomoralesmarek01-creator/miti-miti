@@ -5,7 +5,7 @@ import type { Expense, Payment } from './types'
 const members = ['ana', 'beto', 'caro', 'dani'].map((id) => ({ id }))
 
 function expense(payerId: string, amount: number, participantIds: string[]): Expense {
-  return { id: crypto.randomUUID(), description: '', emoji: '', amount, payerId, participantIds, createdAt: '' }
+  return { id: crypto.randomUUID(), description: '', emoji: '', amount, payerId, participantIds, createdBy: null, createdAt: '' }
 }
 
 function apply(balances: Map<string, number>, transfers: Transfer[]) {
@@ -42,7 +42,7 @@ describe('computeBalances', () => {
   })
 
   it('descuenta los pagos ya hechos', () => {
-    const payments: Payment[] = [{ id: 'p', fromId: 'beto', toId: 'ana', amount: 1000, createdAt: '' }]
+    const payments: Payment[] = [{ id: 'p', fromId: 'beto', toId: 'ana', amount: 1000, createdBy: null, createdAt: '' }]
     const b = computeBalances({ members, expenses: [expense('ana', 2000, ['ana', 'beto'])], payments })
     expect(Object.fromEntries(b)).toEqual({ ana: 0, beto: 0, caro: 0, dani: 0 })
   })

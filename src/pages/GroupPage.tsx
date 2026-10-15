@@ -182,6 +182,9 @@ function Members({ group }: { group: Group }) {
 
 function Activity({ group, onAdd, onEdit }: { group: Group; onAdd: () => void; onEdit: (e: Expense) => void }) {
   const name = (id: string) => group.members.find((m) => m.id === id)?.name ?? '¿?'
+  const me = currentUserId()
+  // Solo quien cargó algo lo puede editar o borrar; al resto se le muestra quién fue.
+  const author = (userId: string | null) => group.members.find((m) => m.userId === userId)?.name ?? 'otra persona'
   const items = [
     ...group.expenses.map((e) => ({ kind: 'gasto' as const, at: e.createdAt, e })),
     ...group.payments.map((p) => ({ kind: 'pago' as const, at: p.createdAt, p })),
@@ -216,20 +219,25 @@ function Activity({ group, onAdd, onEdit }: { group: Group; onAdd: () => void; o
                   : it.e.participantIds.length === group.members.length
                     ? 'entre todos'
                     : `entre ${it.e.participantIds.map(name).join(', ')}`}
+                {it.e.createdBy !== me && ` · cargado por ${author(it.e.createdBy)}`}
               </p>
             </div>
             <span className="monto">{formatMoney(it.e.amount, group.currency)}</span>
             <span className="acciones-gasto">
-              <button className="icono-boton icono-boton--editar" aria-label={`Editar ${it.e.description}`} onClick={() => onEdit(it.e)}>
-                ✎
-              </button>
-              <button
-                className="icono-boton"
-                aria-label={`Borrar ${it.e.description}`}
-                onClick={() => confirm(`¿Borrar "${it.e.description}"?`) && void attempt(() => deleteExpense(group.id, it.e.id))}
-              >
-                ✕
-              </button>
+              {it.e.createdBy === me && (
+                <>
+                  <button className="icono-boton icono-boton--editar" aria-label={`Editar ${it.e.description}`} onClick={() => onEdit(it.e)}>
+                    ✎
+                  </button>
+                  <button
+                    className="icono-boton"
+                    aria-label={`Borrar ${it.e.description}`}
+                    onClick={() => confirm(`¿Borrar "${it.e.description}"?`) && void attempt(() => deleteExpense(group.id, it.e.id))}
+                  >
+                    ✕
+                  </button>
+                </>
+              )}
             </span>
           </article>
         ) : (
@@ -241,17 +249,21 @@ function Activity({ group, onAdd, onEdit }: { group: Group; onAdd: () => void; o
               <h3>
                 {name(it.p.fromId)} le pagó a {name(it.p.toId)}
               </h3>
-              <p className="detalle">Pago para saldar deudas</p>
+              <p className="detalle">
+                Pago para saldar deudas{it.p.createdBy !== me && ` · registrado por ${author(it.p.createdBy)}`}
+              </p>
             </div>
             <span className="monto">{formatMoney(it.p.amount, group.currency)}</span>
             <span className="acciones-gasto">
-              <button
-                className="icono-boton"
-                aria-label="Deshacer pago"
-                onClick={() => confirm('¿Deshacer este pago?') && void attempt(() => deletePayment(group.id, it.p.id))}
-              >
-                ✕
-              </button>
+              {it.p.createdBy === me && (
+                <button
+                  className="icono-boton"
+                  aria-label="Deshacer pago"
+                  onClick={() => confirm('¿Deshacer este pago?') && void attempt(() => deletePayment(group.id, it.p.id))}
+                >
+                  ✕
+                </button>
+              )}
             </span>
           </article>
         ),

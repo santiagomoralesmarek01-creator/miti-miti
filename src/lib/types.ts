@@ -16,6 +16,8 @@ export interface Expense {
   payerId: string
   /** Quienes comparten el gasto, en partes iguales. */
   participantIds: string[]
+  /** Cuenta de quien lo cargó: solo esa persona lo puede editar o borrar. */
+  createdBy: string | null
   createdAt: string
 }
 
@@ -25,6 +27,8 @@ export interface Payment {
   fromId: string
   toId: string
   amount: number
+  /** Cuenta de quien lo registró: solo esa persona lo puede deshacer. */
+  createdBy: string | null
   createdAt: string
 }
 
