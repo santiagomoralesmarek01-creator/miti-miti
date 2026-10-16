@@ -812,6 +812,15 @@ select {
   color: var(--tinta-suave);
 }
 
+/* Firma: se mete en el espacio libre que deja .app abajo. */
+.firma {
+  margin: -96px 0 0;
+  padding: 0 16px 40px;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--tinta-suave);
+}
+
 /* ============ App ============ */
 .app {
   padding: 40px 0 140px;

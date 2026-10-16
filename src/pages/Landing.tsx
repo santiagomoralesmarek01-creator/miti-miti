@@ -184,7 +184,7 @@ export function Landing() {
             <LogoMark /> miti·miti
           </span>
           <span>
-            Hecho con React y TypeScript en Argentina · <Link to="/privacidad">Privacidad</Link>
+            Hecho por <strong>MrK</strong> en Argentina · <Link to="/privacidad">Privacidad</Link>
           </span>
         </div>
       </footer>

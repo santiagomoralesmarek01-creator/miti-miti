@@ -9,6 +9,17 @@ import { Landing } from './pages/Landing'
 import { Login } from './pages/Login'
 import { Privacy } from './pages/Privacy'
 
+/** Firma del autor al pie de las pantallas de la app (la landing la lleva en su pie). */
+function Firma() {
+  const { pathname } = useLocation()
+  if (pathname === '/') return null
+  return (
+    <p className="firma">
+      Hecho por <strong>MrK</strong>
+    </p>
+  )
+}
+
 function ScrollToTop() {
   const { pathname, hash } = useLocation()
   useEffect(() => {
@@ -30,6 +41,7 @@ export default function App() {
         <Route path="/unirse/:code" element={<RequireAuth><Join /></RequireAuth>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      <Firma />
       <Toasts />
     </BrowserRouter>
   )
